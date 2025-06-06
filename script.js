@@ -1,24 +1,45 @@
+```javascript
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-const dialogueBox = document.getElementById('dialogueBox');
-const winScreen = document.getElementById('winScreen');
 
-const duck = { x: 100, y: 300, width: 50, height: 50, dy: 0, gravity: 0.5, jump: -10 };
-const obstacles = [];
-let frameCount = 0;
-let currentDay = 0;
+const duck = {
+  x: 50,
+  y: 400,
+  width: 40,
+  height: 40,
+  velocityY: 0,
+  jumping: false
+};
 
-const dialogues = [
-  "Day 1: Quackers jumps into the pool! Peep floats on a flamingo!",
-  "Day 2: Sandcastles and wave-jumping at the beach!",
-  "Day 3: Shell hunting and crab surprises!",
-  "Day 4: Pirate adventure and market shopping!",
-  "Day 5: Karaoke night! Ducklings sing a silly song!",
-  "Day 6: Treasure hunt around Arcos Playa!",
-  "Day 7: Boat trip and dolphins spotted!",
-  "Day 8: Ice cream, sandcastles, and fun in S'Illot!",
-  "Day 9: Time to go home. See you next year!"
-];
+const gravity = 1.5;
+const ground = 500;
+
+let obstacles = [];
+let trees = [];
+let currentLevel = 1;
+const totalLevels = 15;
+let keys = {};
+
+function createLevel(level) {
+  obstacles = [];
+  trees = [];
+  for (let i = 0; i < 5 + level; i++) {
+    obstacles.push({ x: Math.random() * 800 + 200, y: ground - 20, width: 30, height: 30 });
+    trees.push({ x: Math.random() * 900, y: ground - 60, width: 20, height: 60 });
+  }
+}
+
+function drawBackground() {
+  ctx.fillStyle = '#87CEEB';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#F4A460';
+  ctx.fillRect(0, ground, canvas.width, canvas.height - ground);
+
+  // Draw signs or labels
+  ctx.fillStyle = '#000';
+  ctx.font = '20px Arial';
+  ctx.fillText(`Level ${currentLevel} - Arcos Playa / Sillot`, 10, 30);
+}
 
 function drawDuck() {
   ctx.fillStyle = 'yellow';
@@ -27,75 +48,75 @@ function drawDuck() {
 
 function drawObstacles() {
   ctx.fillStyle = 'brown';
-  obstacles.forEach(ob => {
-    ctx.fillRect(ob.x, ob.y, ob.width, ob.height);
-  });
-}
-
-function updateObstacles() {
-  if (frameCount % 120 === 0) {
-    obstacles.push({ x: 800, y: 350, width: 30, height: 50 });
+  for (let obs of obstacles) {
+    ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
   }
-  obstacles.forEach(ob => {
-    ob.x -= 5;
-  });
 }
 
-function checkCollision() {
-  for (let ob of obstacles) {
+function drawTrees() {
+  ctx.fillStyle = 'green';
+  for (let tree of trees) {
+    ctx.fillRect(tree.x, tree.y, tree.width, tree.height);
+  }
+}
+
+function update() {
+  if (keys['ArrowRight']) duck.x += 5;
+  if (keys['ArrowLeft']) duck.x -= 5;
+
+  duck.velocityY += gravity;
+  duck.y += duck.velocityY;
+  if (duck.y >= ground - duck.height) {
+    duck.y = ground - duck.height;
+    duck.jumping = false;
+  }
+
+  // Collision
+  for (let obs of obstacles) {
     if (
-      duck.x < ob.x + ob.width &&
-      duck.x + duck.width > ob.x &&
-      duck.y < ob.y + ob.height &&
-      duck.y + duck.height > ob.y
+      duck.x < obs.x + obs.width &&
+      duck.x + duck.width > obs.x &&
+      duck.y < obs.y + obs.height &&
+      duck.y + duck.height > obs.y
     ) {
-      currentDay = 0;
-      dialogueBox.innerText = "Oops! Try again from Day 1!";
-      obstacles.length = 0;
+      alert('You hit an obstacle! Restarting level...');
+      duck.x = 50;
+      createLevel(currentLevel);
     }
   }
-}
 
-function nextDay() {
-  if (currentDay < dialogues.length) {
-    dialogueBox.innerText = dialogues[currentDay];
-    currentDay++;
-  } else {
-    winScreen.style.display = 'flex';
-    dialogueBox.style.display = 'none';
-    clearInterval(gameLoop);
+  // Next level
+  if (duck.x > canvas.width) {
+    currentLevel++;
+    if (currentLevel > totalLevels) {
+      alert('Congratulations! You completed all levels!');
+      currentLevel = 1;
+    }
+    duck.x = 50;
+    createLevel(currentLevel);
   }
 }
 
-function game() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+function loop() {
+  drawBackground();
   drawDuck();
   drawObstacles();
-  updateObstacles();
-
-  duck.dy += duck.gravity;
-  duck.y += duck.dy;
-
-  if (duck.y > 350) {
-    duck.y = 350;
-    duck.dy = 0;
-    nextDay();
-  }
-
-  checkCollision();
-  frameCount++;
+  drawTrees();
+  update();
+  requestAnimationFrame(loop);
 }
 
-let gameLoop = setInterval(game, 30);
-
-document.addEventListener('keydown', (e) => {
-  if (e.code === 'Space' || e.code === 'ArrowUp') {
-    if (duck.y >= 350) duck.dy = duck.jump;
+document.addEventListener('keydown', e => {
+  keys[e.key] = true;
+  if (e.key === ' ' && !duck.jumping) {
+    duck.velocityY = -20;
+    duck.jumping = true;
   }
 });
-
-// Touch controls
-document.addEventListener('touchstart', () => {
-  if (duck.y >= 350) duck.dy = duck.jump;
+document.addEventListener('keyup', e => {
+  keys[e.key] = false;
 });
 
+createLevel(currentLevel);
+loop();
+```
